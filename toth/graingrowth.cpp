@@ -34,6 +34,9 @@ void generate(int dim, const char* filename)
 	if (dim==2) {
 		MMSP::grid<2,vector<double> > grid(3,0,128,0,128);
 
+		double lo = 0.0; //1.0e-5;
+		double hi = 1.0; // - 2.0*lo;
+
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
 		#endif
@@ -41,17 +44,17 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(grid,n);
 
 			if (std::pow(x[0]-64,2)+std::pow(x[1]-64,2) < 625) {
-				grid(n)[0] = 1.0;
-				grid(n)[1] = 0.0;
-				grid(n)[2] = 0.0;
+				grid(n)[0] = hi;
+				grid(n)[1] = lo;
+				grid(n)[2] = lo;
 			} else if (x[0]<64) {
-				grid(n)[0] = 0.0001;
-				grid(n)[1] = 0.9999;
-				grid(n)[2] = 0.0;
+				grid(n)[0] = lo;
+				grid(n)[1] = hi;
+				grid(n)[2] = lo;
 			} else {
-				grid(n)[0] = 0.0;
-				grid(n)[1] = 0.0001;
-				grid(n)[2] = 0.9999;
+				grid(n)[0] = lo;
+				grid(n)[1] = lo;
+				grid(n)[2] = hi;
 			}
 		}
 
@@ -142,11 +145,12 @@ double g(const MMSP::vector<T>& v)
 template <int dim>
 void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 {
-	double dt = 0.001;
+	double dt = 0.01;
 
 	for (int step=0; step<steps; step++) {
 		print_progress(step, steps);
-		// update grid must be overwritten each time
+
+		ghostswap(grid);
 		MMSP::grid<dim,vector<double> > update(grid);
 
 		#ifndef MPI_VERSION
@@ -155,36 +159,38 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
-			// dot prod of gradients: centered or midpoint differences?
 			vector<vector<double> > gradPhi = gradient(grid,x);
 			//vector<vector<double> > gradPhiU = upside_grad(grid,x);
 			//vector<vector<double> > gradPhiD = downside_grad(grid,x);
 			vector<double> lapPhi = laplacian(grid,x);
 
-			double alleps = 0.0, allomg = 0.0, denom = 0.0;
-			for (int i=0; i<fields(grid); i++)
+			double denom = 0.0;
+			for (int i=0; i<fields(grid); i++) {
+				denom += pow(grid(x)[i],4);
 				for (int j=i+1; j<fields(grid); j++)
 					denom += 2.0*pow(grid(x)[i],2)*pow(grid(x)[j],2);
+			}
+
+			double alleps = 0.0, allomg = 0.0;
 			for (int i=0; i<fields(grid); i++)
-				for (int j=i+1; j<fields(grid); j++) {
-					if (denom < 1.0e-20 || i==j)
-						continue;
+				for (int j=0; j<fields(grid); j++) {
 					double gamij = energy(i,j);
 					double delij = width(i,j);
 					double epsij = 3.0*gamij*delij; // epsilon squared(ij)
 					double omgij = 3.0*gamij/delij; // omega(ij)
-					alleps += 2.0*epsij*pow(grid(x)[i],2)*pow(grid(x)[j],2) / denom;
-					allomg += 2.0*omgij*pow(grid(x)[i],2)*pow(grid(x)[j],2) / denom;
+					alleps += epsij*pow(grid(x)[i],2)*pow(grid(x)[j],2) / denom;
+					allomg += omgij*pow(grid(x)[i],2)*pow(grid(x)[j],2) / denom;
 				}
+
 			vector<double> dedp(fields(grid),0.0);
 			vector<double> dwdp(fields(grid),0.0);
 			vector<double> dgdp(fields(grid),0.0);
 			for (int i=0; i<fields(grid); i++) {
 				dgdp[i] = pow(grid(x)[i],3) - pow(grid(x)[i],2);
 				for (int j=0; j<fields(grid); j++) {
-					if (j>i)
+					if (i<j)
 						dgdp[i] += grid(x)[i]*pow(grid(x)[j],2);
-					if (denom < 1.0e-20 || i==j)
+					else if (i==j)
 						continue;
 					double gamij = energy(i,j);
 					double delij = width(i,j);
@@ -194,40 +200,24 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 					dwdp[i] += 2.0*grid(x)[i]*(omgij - allomg)*pow(grid(x)[j],2) / denom;
 				}
 			}
+
 			vector<double> dFdp(fields(grid),0.0);
 			double sumdFdp = 0.0;
 			for (int i=0; i<fields(grid); i++) {
-				dFdp[i] += allomg*dgdp[i] + dwdp[i]*g(grid(x)) - alleps*lapPhi[i];
-				for (int j=0; j<fields(grid); j++) {
+				dFdp[i] = allomg*dgdp[i] + g(grid(x))*dwdp[i] - alleps*lapPhi[i];
+				for (int j=0; j<fields(grid); j++)
 					for (int d=0; d<dim; d++)
 						dFdp[i] += gradPhi[d][j] * (0.5*dedp[i]*gradPhi[d][j] - dedp[j]*gradPhi[d][i]);
-				}
 				sumdFdp += dFdp[i];
 			}
-			//double sum = 0.0;
-			for (int i=0; i<fields(grid); i++) {
-				update(x)[i] = grid(x)[i] + dt*(sumdFdp - 1.0*fields(grid)*dFdp[i]);
-				/*
-				update(x)[i] = grid(x)[i];
-				for (int j=0; j<fields(grid); j++) {
-					if (i==j)
-						continue;
-					update(x)[i] += dt*(dFdp[j] - dFdp[i]);
-				}
-				sum += update(x)[i];
-				*/
-			}
-			/*
-			// project onto Gibbs simplex
-			double rsum = 0.0;
-			if (fabs(sum)>0.0) rsum = 1.0/sum;
-			for (int i=0; i<fields(update); i++)
-                update(x)[i] *= rsum;
-            */
+
+			for (int i=0; i<fields(grid); i++)
+				update(x)[i] = grid(x)[i] + dt*(sumdFdp - double(fields(grid))*dFdp[i]);
 		}
 		swap(grid,update);
-		ghostswap(grid);
 	}
+	// In case vector calculations are necessary for mass or energy
+	ghostswap(grid);
 
 	MMSP::vector<double> mass(fields(grid));
 	for (int n=0; n<nodes(grid); n++)

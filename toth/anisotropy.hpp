@@ -28,7 +28,7 @@ double energy(int i, int j)
 	double energy = energy_table[a][b];
 	if (energy==0.0) {
 		// compute energy here...
-		energy = 1.0;
+		energy = 1.0/3;
 		energy_table[a][b] = energy;
 	}
 	return energy;
@@ -38,16 +38,13 @@ double width(int i, int j)
 {
 	using namespace anisotropy;
 
-	// trivial case: no boundary
-	if (i==j) return 0.0;
-
 	// use computed value, if possible
 	int a = min(i,j);
 	int b = max(i,j);
 	double width = width_table[a][b];
 	if (width==0.0) {
 		// compute width here...
-		width = 8.0;
+		width = 1.0;
 		width_table[a][b] = width;
 	}
 	return width;
