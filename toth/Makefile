@@ -7,10 +7,10 @@ incdir = $(MMSP_PATH)/include
 
 # compilers/flags
 compiler = g++
-flags = -O3 -std=c++11 -I $(incdir) -fopenmp
+flags = -O3 -I $(incdir) -fopenmp
 gflags = -g -I $(incdir)
 pcompiler = mpic++
-pflags = -O3 -std=c++11 -I $(incdir) -include mpi.h
+pflags = -O3 -I $(incdir) -include mpi.h
 
 # dependencies
 core = $(incdir)/MMSP.main.hpp \

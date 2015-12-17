@@ -8,7 +8,6 @@
 #include"anisotropy.hpp"
 #include"graingrowth.hpp"
 #include<cmath>
-#include<random>
 
 namespace MMSP{
 
@@ -35,36 +34,24 @@ void generate(int dim, const char* filename)
 	if (dim==2) {
 		MMSP::grid<2,vector<double> > grid(3,0,128,0,128);
 
-		double mu    = 0.0;
-		double sigma = 1.0e-9;
-		std::default_random_engine generator;
-		std::normal_distribution<double> distribution(mu, sigma);
-
-		for (int i=0; i<fields(grid); i++)
-			for (int n=0; n<nodes(grid); n++)
-				grid(n)[i] = distribution(generator);
-
-		double lo = 0.0;// 1.0e-5;
-		double hi = 1.0;// 1.0 - 2.0*lo;
-
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
 		#endif
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
-			if (std::pow(x[0]-64,2.0)+std::pow(x[1]-64,2.0) < 625) {
-				grid(n)[0] += hi;
-				grid(n)[1] += lo;
-				grid(n)[2] += lo;
+			if (std::pow(x[0]-64,2.0)+std::pow(x[1]-64,2.0) < 1024) {
+				grid(n)[0] = 1.0;
+				grid(n)[1] = 0.0;
+				grid(n)[2] = 0.0;
 			} else if (x[0]<64) {
-				grid(n)[0] += lo;
-				grid(n)[1] += hi;
-				grid(n)[2] += lo;
+				grid(n)[0] = 0.0;
+				grid(n)[1] = 1.0;
+				grid(n)[2] = 0.0;
 			} else {
-				grid(n)[0] += lo;
-				grid(n)[1] += lo;
-				grid(n)[2] += hi;
+				grid(n)[0] = 0.0;
+				grid(n)[1] = 0.0;
+				grid(n)[2] = 1.0;
 			}
 		}
 
