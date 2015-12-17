@@ -54,7 +54,7 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(grid,n);
 
 			if (std::pow(x[0]-64,2.0)+std::pow(x[1]-64,2.0) < 625) {
-				grid(n)[0] -= hi;
+				grid(n)[0] += hi;
 				grid(n)[1] += lo;
 				grid(n)[2] += lo;
 			} else if (x[0]<64) {
@@ -140,6 +140,27 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
+			// Symmetric EOM
+			double omega = 1.0;
+			double epssq = 1.0;
+
+			vector<double> lapPhi = laplacian(grid,x);
+			double sumPhiSq = 0.0;
+			for (int i=0; i<fields(grid); i++)
+				sumPhiSq += pow(grid(x)[i],2.0);
+
+			vector<double> dFdp(fields(grid),0.0);
+			double sumdFdp = 0.0;
+			for (int i=0; i<fields(grid); i++) {
+				dFdp[i] = omega*grid(x)[i]*(sumPhiSq-grid(x)[i]) - epssq*lapPhi[i];
+				sumdFdp += dFdp[i];
+			}
+
+			for (int i=0; i<fields(grid); i++)
+				update(x)[i] = grid(x)[i] + dt*(sumdFdp - double(fields(grid))*dFdp[i]);
+
+			/*
+			// Asymmetric EOM
 			vector<vector<double> > gradPhi = gradient(grid,x);
 			vector<double> lapPhi = laplacian(grid,x);
 
@@ -197,6 +218,7 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 			for (int i=0; i<fields(grid); i++)
 				update(x)[i] = grid(x)[i] + dt*(sumdFdp - double(fields(grid))*dFdp[i]);
 				//update(x)[i] = max(0.0, min(1.0,grid(x)[i] + dt*(sumdFdp - double(fields(grid))*dFdp[i])));
+			*/
 
 		}
 		swap(grid,update);
