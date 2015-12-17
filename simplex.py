@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import numpy as np
 
-Titles = (u'Folch bulk energy',u'Steinbach bulk energy',u'Moelans bulk energy',u'Tóth bulk energy')
+Titles = (u'Folch bulk energy',u'Steinbach bulk energy',u'Moelans bulk energy',u'Tóth bulk energy',u'Levitas bulk energy')
 
 # interfacial Helmholtz free energy densities
 def binary_folch(a, b):
@@ -17,10 +17,10 @@ def ternary_folch(a, b, c):
 	return np.power(a*(1.0-a),2) + np.power(b*(1.0-b),2) + np.power(c*(1.0-c),2)
 
 def binary_steinbach(a, b):
-	return np.abs(a)*np.abs(b)
+	return 0.5*np.abs(a)*np.abs(b)
 
 def ternary_steinbach(a, b, c):
-	return np.abs(a)*np.abs(b) + np.abs(a)*np.abs(c) + np.abs(b)*np.abs(c)		
+	return 0.5*np.abs(a)*np.abs(b) + 0.5*np.abs(a)*np.abs(c) + 0.5*np.abs(b)*np.abs(c)		
 
 def binary_moelans(a, b):
 	gamma = 1.5
@@ -102,8 +102,8 @@ plt.savefig('Levitas_binary.png', dpi=400, bbox_inches='tight')
 plt.close()
 
 # Ternary system
-npts = 100
-span = (-0.25,1.25)
+npts = 200
+span = (-0.125,1.125)
 x = np.linspace(span[0],span[1],npts)
 y = np.linspace(span[0],span[1],npts)
 z = np.ndarray(shape=(5,len(x)*len(y)), dtype=float)
@@ -126,8 +126,14 @@ for j in np.nditer(y):
 		q[n]=j
 		z[0][n] = ternary_folch(a,b,c)
 		z[1][n] = ternary_steinbach(a,b,c)
-		z[2][n] = ternary_toth(a,b,c)
-		z[3][n] = ternary_moelans(a,b,c)
+		#z[2][n] = np.min((ternary_moelans(a,b,c),ternary_moelans(1-a,b,c),ternary_moelans(a,1-b,c),ternary_moelans(a,b,1-c),ternary_moelans(a,1-b,1-c),ternary_moelans(1-a,b,1-c),ternary_moelans(1-a,1-b,c),ternary_moelans(1-a,1-b,1-c)))
+		#z[3][n] = np.min((ternary_toth(a,b,c),ternary_toth(1-a,b,c),ternary_toth(a,1-b,c),ternary_toth(a,b,1-c),ternary_toth(a,1-b,1-c),ternary_toth(1-a,b,1-c),ternary_toth(1-a,1-b,c),ternary_toth(1-a,1-b,1-c)))
+		z[2][n] = np.min((ternary_moelans(a,b,c),ternary_moelans(b,a,c),ternary_moelans(b,c,a),
+		                  ternary_moelans(a,c,b),ternary_moelans(c,a,b),ternary_moelans(c,b,a)))
+		z[3][n] = np.min((ternary_toth(a,b,c),ternary_toth(b,a,c),ternary_toth(b,c,a),
+		                  ternary_toth(a,c,b),ternary_toth(c,a,b),ternary_toth(c,b,a)))
+		#z[2][n] = np.min(ternary_moelans(a,b,c),ternary_moelans(1-a,1-b,1-c))
+		#z[3][n] = np.min(ternary_toth(a,b,c),ternary_toth(1-a,1-b,1-c))
 		z[4][n] = ternary_levitas(a,b,c)
 		n+=1
 
@@ -140,7 +146,7 @@ for ax in axarr.reshape(-1):
 	ax.set_xlim(span)
 	ax.set_ylim(span)
 	ax.axis('off')
-	ax.tricontourf(p,q,z[n], 96, cmap=plt.cm.get_cmap('coolwarm'),)#)
+	ax.tricontourf(p,q,z[n], 96, cmap=plt.cm.get_cmap('coolwarm'))
 	ax.plot(trix,triy, linestyle=':', color='w')
 	n+=1
 f.savefig('ternary.png', dpi=400, bbox_inches='tight')
@@ -148,9 +154,11 @@ plt.close()
 
 f, ax = plt.subplots(1,1)
 plt.title(r'Levitas bulk energy')
-plt.axis('equal')
-plt.axis('off')
-confil = ax.tricontourf(p,q,z[4], 96, cmap=plt.cm.get_cmap('coolwarm'),norm=LogNorm())
+ax.axis('equal')
+ax.set_xlim(span)
+ax.set_ylim(span)
+ax.axis('off')
+confil = ax.tricontourf(p,q,z[n], 96, cmap=plt.cm.get_cmap('coolwarm'),norm=LogNorm())
 cbar = plt.colorbar(confil)#, format='%.1f')
 plt.savefig('Levitas.png', dpi=400, bbox_inches='tight')
 plt.close()
