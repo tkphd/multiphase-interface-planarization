@@ -19,9 +19,6 @@ double energy(int i, int j)
 {
 	using namespace anisotropy;
 
-	// trivial case: no boundary
-	if (i==j) return 0.0;
-
 	// use computed value, if possible
 	int a = min(i,j);
 	int b = max(i,j);
