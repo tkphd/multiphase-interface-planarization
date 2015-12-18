@@ -127,6 +127,7 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
+			/*
 			// Symmetric EOM
 			double omega = 1.0;
 			double epssq = 1.0;
@@ -146,7 +147,8 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 			for (int i=0; i<fields(grid); i++)
 				update(x)[i] = grid(x)[i] + dt*(sumdFdp - double(fields(grid))*dFdp[i]);
 
-			/*
+			*/
+
 			// Asymmetric EOM
 			vector<vector<double> > gradPhi = gradient(grid,x);
 			vector<double> lapPhi = laplacian(grid,x);
@@ -161,11 +163,11 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 			double alleps = 0.0, allomg = 0.0;
 			for (int i=0; i<fields(grid); i++)
 				for (int j=0; j<fields(grid); j++) {
-					if (i==j) continue;
+					//if (i==j) continue;
 					double gamij = 1.0; //energy(i,j);
 					double delij = 10.0; //width(i,j);
-					double epsij = 3.0*gamij*delij; // epsilon squared(ij)
-					double omgij = 3.0*gamij/delij; // omega(ij)
+					double epsij = 1.0; //3.0*gamij*delij; // epsilon squared(ij)
+					double omgij = 1.0; //3.0*gamij/delij; // omega(ij)
 					alleps += epsij*pow(grid(x)[i],2.0)*pow(grid(x)[j],2.0) / denom;
 					allomg += omgij*pow(grid(x)[i],2.0)*pow(grid(x)[j],2.0) / denom;
 				}
@@ -178,14 +180,13 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 				for (int j=0; j<fields(grid); j++) {
 					if (i==j)
 						continue;
-					else if (j>i)
-						dgdp[i] += grid(x)[i]*pow(grid(x)[j],2.0);
 					double gamij = 1.0; //energy(i,j);
 					double delij = 10.0; //width(i,j);
 					double epsij = 3.0*gamij*delij; // epsilon squared(ij)
 					double omgij = 3.0*gamij/delij; // omega(ij)
 					dedp[i] += 2.0*grid(x)[i]*(epsij - alleps)*pow(grid(x)[j],2.0) / denom;
 					dwdp[i] += 2.0*grid(x)[i]*(omgij - allomg)*pow(grid(x)[j],2.0) / denom;
+					dgdp[i] += grid(x)[i]*pow(grid(x)[j],2.0);
 				}
 			}
 
@@ -205,7 +206,6 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 			for (int i=0; i<fields(grid); i++)
 				update(x)[i] = grid(x)[i] + dt*(sumdFdp - double(fields(grid))*dFdp[i]);
 				//update(x)[i] = max(0.0, min(1.0,grid(x)[i] + dt*(sumdFdp - double(fields(grid))*dFdp[i])));
-			*/
 
 		}
 		swap(grid,update);
