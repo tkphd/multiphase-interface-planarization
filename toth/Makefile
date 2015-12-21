@@ -6,7 +6,7 @@
 incdir = $(MMSP_PATH)/include
 
 # compilers/flags
-compiler = g++
+compiler = icc
 flags = -O3 -I $(incdir) -fopenmp
 gflags = -g -I $(incdir)
 pcompiler = mpic++

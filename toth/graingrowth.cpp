@@ -128,28 +128,6 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
-			/*
-			// Symmetric EOM
-			double omega = 1.0;
-			double epssq = 1.0;
-
-			vector<double> lapPhi = laplacian(grid,x);
-			double sumPhiSq = 0.0;
-			for (int i=0; i<fields(grid); i++)
-				sumPhiSq += pow(grid(x)[i],2.0);
-
-			vector<double> dFdp(fields(grid),0.0);
-			double sumdFdp = 0.0;
-			for (int i=0; i<fields(grid); i++) {
-				dFdp[i] = omega*grid(x)[i]*(sumPhiSq-grid(x)[i]) - epssq*lapPhi[i];
-				sumdFdp += dFdp[i];
-			}
-
-			for (int i=0; i<fields(grid); i++)
-				update(x)[i] = grid(x)[i] + dt*(sumdFdp - double(fields(grid))*dFdp[i]);
-
-			*/
-
 			// Asymmetric EOM
 			vector<vector<double> > gradPhi = gradient(grid,x);
 			vector<double> lapPhi = laplacian(grid,x);
@@ -160,6 +138,9 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 					denom += pow(grid(x)[i],2.0)*pow(grid(x)[j],2.0);
 			if (denom>epsilon) rdenom = 1.0/denom;
 
+			double eps0 = 3.0;
+			double omg0 = 3.0;
+
 			double alleps = 0.0, allomg = 0.0;
 			for (int i=0; i<fields(grid); i++) {
 				double phii = grid(x)[i];
@@ -167,8 +148,8 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 					double phij = grid(x)[j];
 					double gamij = energy(i,j);
 					double delij = width(i,j);
-					double epsij = 3.0*gamij*delij; // epsilon squared(ij)
-					double omgij = 3.0*gamij/delij; // omega(ij)
+					double epsij = eps0*gamij*delij; // epsilon squared(ij)
+					double omgij = omg0*gamij/delij; // omega(ij)
 					alleps += epsij*pow(phii,2.0)*pow(phij,2.0) * rdenom;
 					allomg += omgij*pow(phii,2.0)*pow(phij,2.0) * rdenom;
 				}
@@ -185,8 +166,8 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 					double phij = grid(x)[j];
 					double gamij = energy(i,j);
 					double delij = width(i,j);
-					double epsij = 3.0*gamij*delij; // epsilon squared(ij)
-					double omgij = 3.0*gamij/delij; // omega(ij)
+					double epsij = eps0*gamij*delij; // epsilon squared(ij)
+					double omgij = omg0*gamij/delij; // omega(ij)
 					dedp[i] += 2.0*phii*(epsij - alleps)*pow(phij,2.0) * rdenom;
 					dwdp[i] += 2.0*phii*(omgij - allomg)*pow(phij,2.0) * rdenom;
 					dgdp[i] += phii*pow(phij,2.0);
