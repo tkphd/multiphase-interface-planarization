@@ -127,11 +127,16 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
-			double omega = 1.0;
-			double gamma = 3.0/2;
-			double kappa = 1.0;
+			double kap0 = 1.0;
+			double omg0 = 1.0;
 
+			/*
 			// Symmetric EOM
+			double gamma = energy(0,1);
+			double delta = width(0,1);
+			double kappa = kap0*gamij*delij;
+			double omega = omg0*gamij/delij;
+
 			vector<double> lapPhi = laplacian(grid,x);
 			vector<double> dFdp(fields(grid),0.0);
 
@@ -146,8 +151,8 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 
 			for (int i=0; i<fields(grid); i++)
 				update(x)[i] = grid(x)[i] - dt*dFdp[i];
+			*/
 
-			/*
 			// Asymmetric EOM
 			vector<vector<double> > gradPhi = gradient(grid,x);
 			vector<double> lapPhi = laplacian(grid,x);
@@ -198,7 +203,6 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 						dFdp += gradPhi[d][j] * (0.5*dedp[i]*gradPhi[d][j] - dedp[j]*gradPhi[d][i]);
 				update(x)[i] = grid(x)[i] - dt*dFdp;
 			}
-			*/
 
 		}
 		swap(grid,update);
