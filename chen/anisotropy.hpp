@@ -25,7 +25,7 @@ double energy(int i, int j)
 	double energy = energy_table[a][b];
 	if (energy==0.0) {
 		// compute energy here...
-		energy = 1.0/3;
+		energy = 3.0/2;
 		energy_table[a][b] = energy;
 	}
 	return energy;

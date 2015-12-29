@@ -100,7 +100,6 @@ void generate(int dim, const char* filename)
 template<typename T>
 double multiwell(const MMSP::vector<T>& v)
 {
-	// this is the 'g' function, Eqn. 30
 	double ifce_nrg = 0.0;
 	for (int i=0; i<length(v); i++) {
 		ifce_nrg += pow(v[i],4.0)/4.0 - pow(v[i],2.0)/2.0;
@@ -128,6 +127,27 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
+			double omega = 1.0;
+			double gamma = 3.0/2;
+			double kappa = 1.0;
+
+			// Symmetric EOM
+			vector<double> lapPhi = laplacian(grid,x);
+			vector<double> dFdp(fields(grid),0.0);
+
+			for (int i=0; i<fields(grid); i++) {
+				double phii = grid(x)[i];
+				dFdp[i] = omega*(pow(phii,3.0) - phii) - kappa*lapPhi[i];
+				for (int j=0; j<fields(grid); j++) {
+					if (i==j) continue;
+					dFdp[i] += 2.0*omega*gamma*phii*pow(grid(x)[j],2.0);
+				}
+			}
+
+			for (int i=0; i<fields(grid); i++)
+				update(x)[i] = grid(x)[i] - dt*dFdp[i];
+
+			/*
 			// Asymmetric EOM
 			vector<vector<double> > gradPhi = gradient(grid,x);
 			vector<double> lapPhi = laplacian(grid,x);
@@ -138,19 +158,16 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 					denom += pow(grid(x)[i],2.0)*pow(grid(x)[j],2.0);
 			if (denom>epsilon) rdenom = 1.0/denom;
 
-			double eps0 = 3.0;
-			double omg0 = 3.0;
-
-			double alleps = 0.0, allomg = 0.0;
+			double allkap = 0.0, allomg = 0.0;
 			for (int i=0; i<fields(grid); i++) {
 				double phii = grid(x)[i];
 				for (int j=0; j<fields(grid); j++) {
 					double phij2 = pow(grid(x)[j],2.0);
 					double gamij = energy(i,j);
 					double delij = width(i,j);
-					double epsij = eps0*gamij*delij; // epsilon squared(ij)
+					double kapij = kap0*gamij*delij; // epsilon squared(ij)
 					double omgij = omg0*gamij/delij; // omega(ij)
-					alleps += epsij*pow(phii,2.0)*phij2 * rdenom;
+					allkap += kapij*pow(phii,2.0)*phij2 * rdenom;
 					allomg += omgij*pow(phii,2.0)*phij2 * rdenom;
 				}
 			}
@@ -160,27 +177,28 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 			vector<double> dgdp(fields(grid),0.0);
 			for (int i=0; i<fields(grid); i++) {
 				double phii = grid(x)[i];
-				dgdp[i] = pow(phii,3.0) - pow(phii,2.0);
+				dgdp[i] = pow(phii,3.0) - phii;
 				for (int j=0; j<fields(grid); j++) {
 					if (i==j) continue;
 					double phij2 = pow(grid(x)[j],2.0);
 					double gamij = energy(i,j);
 					double delij = width(i,j);
-					double epsij = eps0*gamij*delij; // epsilon squared(ij)
+					double kapij = kap0*gamij*delij; // epsilon squared(ij)
 					double omgij = omg0*gamij/delij; // omega(ij)
-					dedp[i] += 2.0*phii*(epsij - alleps)*phij2 * rdenom;
+					dedp[i] += 2.0*phii*(kapij - allkap)*phij2 * rdenom;
 					dwdp[i] += 2.0*phii*(omgij - allomg)*phij2 * rdenom;
 					dgdp[i] += 2.0*gamij*phii*phij2;
 				}
 			}
 
 			for (int i=0; i<fields(grid); i++) {
-				double dFdp = allomg*dgdp[i] + multiwell(grid(x))*dwdp[i] - alleps*lapPhi[i];
+				double dFdp = allomg*dgdp[i] + multiwell(grid(x))*dwdp[i] - allkap*lapPhi[i];
 				for (int j=0; j<fields(grid); j++)
 					for (int d=0; d<dim; d++)
 						dFdp += gradPhi[d][j] * (0.5*dedp[i]*gradPhi[d][j] - dedp[j]*gradPhi[d][i]);
 				update(x)[i] = grid(x)[i] - dt*dFdp;
 			}
+			*/
 
 		}
 		swap(grid,update);
