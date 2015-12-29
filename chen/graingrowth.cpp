@@ -56,9 +56,13 @@ void generate(int dim, const char* filename)
 		}
 
 		MMSP::vector<double> mass(fields(grid));
-		for (int n=0; n<nodes(grid); n++)
+		for (int n=0; n<nodes(grid); n++) {
+			double local_mass = 0.0;
 			for (int l=0; l<fields(grid); l++)
-				mass[l] += grid(n)[l];
+				local_mass += pow(grid(n)[l],2.0);
+			for (int l=0; l<fields(grid); l++)
+				mass[l] += pow(grid(n)[l],2.0)/local_mass;
+		}
 		for (int l=0; l<length(mass); l++)
 			std::cout<<mass[l]<<'\t';
 		std::cout<<std::endl;
@@ -211,9 +215,13 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 	ghostswap(grid);
 
 	MMSP::vector<double> mass(fields(grid));
-	for (int n=0; n<nodes(grid); n++)
+	for (int n=0; n<nodes(grid); n++) {
+		double local_mass = 0.0;
 		for (int l=0; l<fields(grid); l++)
-			mass[l] += grid(n)[l];
+			local_mass += pow(grid(n)[l],2.0);
+		for (int l=0; l<fields(grid); l++)
+			mass[l] += pow(grid(n)[l],2.0)/local_mass;
+	}
 	for (int l=0; l<length(mass); l++)
 		std::cout<<mass[l]<<'\t';
 	std::cout<<std::endl;
