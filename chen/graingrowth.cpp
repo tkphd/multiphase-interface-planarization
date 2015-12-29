@@ -179,7 +179,7 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 				for (int j=0; j<fields(grid); j++)
 					for (int d=0; d<dim; d++)
 						dFdp += gradPhi[d][j] * (0.5*dedp[i]*gradPhi[d][j] - dedp[j]*gradPhi[d][i]);
-				update(x)[i] = grid(x)[i] + dt*dFdp;
+				update(x)[i] = grid(x)[i] - dt*dFdp;
 			}
 
 		}
