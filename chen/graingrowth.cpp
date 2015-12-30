@@ -64,7 +64,7 @@ void generate(int dim, const char* filename)
 				int i = index(grid(n),k);
 				local_mass += pow(grid(n)[i],2.0);
 			}
-			double recip_mass = (local_mass<machine_epsilon)?0.0:1.0/local_mass;
+			double recip_mass = (local_mass>machine_epsilon)?1.0/local_mass:0.0;
 			for (int k=0; k<length(grid(n)); k++) {
 				int i = index(grid(n),k);
 				set(mass,i) += pow(grid(n)[i],2.0)*recip_mass;
@@ -151,20 +151,21 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 			double omega = omg0*gamij/delij;
 
 			sparse<double> lapPhi = laplacian(grid,x);
-			sparse<double> dFdp(length(grid(x)),0.0);
+			sparse<double> dFdp;
 
-			for (int k=0; k<length(grid(x)); k++) {
-				int i = index(grid(x),k);
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
 				double phii = grid(x)[i];
 				set(dFdp,i) = omega*(pow(phii,3.0) - phii) - kappa*lapPhi[i];
-				for (int j=0; j<length(grid(x)); j++) {
+				for (int l=0; l<length(lapPhi); l++) {
+					int j = index(lapPhi,l);
 					if (i==j) continue;
 					set(dFdp,i) += 2.0*omega*gamma*phii*pow(grid(x)[j],2.0);
 				}
 			}
 
-			for (int k=0; k<length(grid(x)); k++) {
-				int i = index(grid(x),k);
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
 				set(update(x),i) = grid(x)[i] - dt*dFdp[i];
 			}
 			*/
@@ -173,22 +174,22 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 			vector<sparse<double> > gradPhi = gradient(grid,x);
 			sparse<double> lapPhi = laplacian(grid,x);
 
-			double denom = 0.0, rdenom=0.0;
-			for (int k=0; k<length(grid(x)); k++) {
-				int i = index(grid(x),k);
-				for (int l=0; l<length(grid(x)); l++) {
-					int j = index(grid(x),l);
+			double denom = 0.0;
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
+				for (int l=0; l<length(lapPhi); l++) {
+					int j = index(lapPhi,l);
 					denom += pow(grid(x)[i],2.0)*pow(grid(x)[j],2.0);
 				}
 			}
-			if (denom>machine_epsilon) rdenom = 1.0/denom;
+			double rdenom = (denom>machine_epsilon)?1.0/denom:0.0;
 
 			double allkap = 0.0, allomg = 0.0;
-			for (int k=0; k<length(grid(x)); k++) {
-				int i = index(grid(x),k);
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
 				double phii = grid(x)[i];
-				for (int l=0; l<length(grid(x)); l++) {
-					int j = index(grid(x),l);
+				for (int l=0; l<length(lapPhi); l++) {
+					int j = index(lapPhi,l);
 					double phij2 = pow(grid(x)[j],2.0);
 					double gamij = energy(i,j);
 					double delij = width(i,j);
@@ -202,12 +203,12 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 			sparse<double> dedp;
 			sparse<double> dwdp;
 			sparse<double> dgdp;
-			for (int k=0; k<length(grid(x)); k++) {
-				int i = index(grid(x),k);
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
 				double phii = grid(x)[i];
 				set(dgdp,i) = pow(phii,3.0) - phii;
-				for (int l=0; l<length(grid(x)); l++) {
-					int j = index(grid(x),l);
+				for (int l=0; l<length(lapPhi); l++) {
+					int j = index(lapPhi,l);
 					if (i==j) continue;
 					double phij2 = pow(grid(x)[j],2.0);
 					double gamij = energy(i,j);
@@ -220,13 +221,13 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 				}
 			}
 
-			for (int k=0; k<length(grid(x)); k++) {
-				int i = index(grid(x),k);
-				double dFdp = allomg*set(dgdp,i) + multiwell(grid(x))*set(dwdp,i) - allkap*lapPhi[i];
-				for (int l=0; l<length(grid(x)); l++) {
-					int j = index(grid(x),l);
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
+				double dFdp = allomg*dgdp[i] + multiwell(grid(x))*dwdp[i] - allkap*lapPhi[i];
+				for (int l=0; l<length(lapPhi); l++) {
+					int j = index(lapPhi,l);
 					for (int d=0; d<dim; d++)
-						dFdp += gradPhi[d][j] * (0.5*set(dedp,i)*gradPhi[d][j] - dedp[j]*gradPhi[d][i]);
+						dFdp += gradPhi[d][j] * (0.5*dedp[i]*gradPhi[d][j] - dedp[j]*gradPhi[d][i]);
 				}
 				set(update(x),i) = grid(x)[i] - dt*dFdp;
 			}
@@ -244,7 +245,7 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 			int i = index(grid(n),k);
 			local_mass += pow(grid(n)[i],2.0);
 		}
-		double recip_mass = (local_mass<machine_epsilon)?0.0:1.0/local_mass;
+		double recip_mass = (local_mass>machine_epsilon)?1.0/local_mass:0.0;
 		for (int k=0; k<length(grid(n)); k++) {
 			int i = index(grid(n),k);
 			set(mass,i) += pow(grid(n)[i],2.0)*recip_mass;

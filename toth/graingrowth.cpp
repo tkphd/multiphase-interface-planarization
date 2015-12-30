@@ -11,10 +11,12 @@
 
 namespace MMSP{
 
+const double machine_epsilon = 1.0e-8;
+
 void generate(int dim, const char* filename)
 {
 	if (dim==1) {
-		MMSP::grid<1,vector<double> > grid(3,0,128);
+		MMSP::grid<1,sparse<double> > grid(0,0,128);
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -22,17 +24,17 @@ void generate(int dim, const char* filename)
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
-			if (x[0]<32)      grid(n)[2] = 1.0;
-			else if (x[0]>96) grid(n)[2] = 1.0;
-			else              grid(n)[0] = 1.0;
-			grid(n)[1] = 0.0;
+			if (x[0]<32)      set(grid(n),2) = 1.0;
+			else if (x[0]>96) set(grid(n),2) = 1.0;
+			else              set(grid(n),0) = 1.0;
+			set(grid(n),1) = 0.0;
 		}
 
 		output(grid,filename);
 	}
 
 	if (dim==2) {
-		MMSP::grid<2,vector<double> > grid(3,0,128,0,128);
+		MMSP::grid<2,sparse<double> > grid(0,0,128,0,128);
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -41,33 +43,35 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(grid,n);
 
 			if (std::pow(x[0]-64,2.0)+std::pow(x[1]-64,2.0) < 1024) {
-				grid(n)[0] = 1.0;
-				grid(n)[1] = 0.0;
-				grid(n)[2] = 0.0;
+				set(grid(n),0) = 1.0;
+				set(grid(n),1) = 0.0;
+				set(grid(n),2) = 0.0;
 			} else if (x[0]<64) {
-				grid(n)[0] = 0.0;
-				grid(n)[1] = 1.0;
-				grid(n)[2] = 0.0;
+				set(grid(n),0) = 0.0;
+				set(grid(n),1) = 1.0;
+				set(grid(n),2) = 0.0;
 			} else {
-				grid(n)[0] = 0.0;
-				grid(n)[1] = 0.0;
-				grid(n)[2] = 1.0;
+				set(grid(n),0) = 0.0;
+				set(grid(n),1) = 0.0;
+				set(grid(n),2) = 1.0;
 			}
 		}
 
-		MMSP::vector<double> mass(fields(grid));
+		MMSP::sparse<double> mass;
 		for (int n=0; n<nodes(grid); n++)
-			for (int l=0; l<fields(grid); l++)
-				mass[l] += grid(n)[l];
+			for (int k=0; k<length(grid(n)); k++) {
+				int i = index(grid(n),k);
+				set(mass,i) += grid(n)[i];
+			}
 		for (int l=0; l<length(mass); l++)
-			std::cout<<mass[l]<<'\t';
+			std::cout<<mass.value(l)<<'\t';
 		std::cout<<std::endl;
 
 		output(grid,filename);
 	}
 
 	if (dim==3) {
-		MMSP::grid<3,vector<double> > grid(3,0,64,0,64,0,64);
+		MMSP::grid<3,sparse<double> > grid(0,0,64,0,64,0,64);
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -76,20 +80,20 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(grid,n);
 
 			if (x[0]<16) {
-				if (x[1]<32) grid(n)[1] = 1.0;
-				else grid(n)[2] = 1.0;
-				grid(n)[0] = 0.0;
+				if (x[1]<32) set(grid(n),1) = 1.0;
+				else set(grid(n),2) = 1.0;
+				set(grid(n),0) = 0.0;
 			}
 			else if (x[0]>48) {
-				if (x[1]<32) grid(n)[1] = 1.0;
-				else grid(n)[2] = 1.0;
-				grid(n)[0] = 0.0;
+				if (x[1]<32) set(grid(n),1) = 1.0;
+				else set(grid(n),2) = 1.0;
+				set(grid(n),0) = 0.0;
 
 			}
 			else {
-				if (x[1]<16 || x[1]>48) grid(n)[0] = 1.0;
-				else grid(n)[0] = 1.0;
-				grid(n)[1] = 0.0;
+				if (x[1]<16 || x[1]>48) set(grid(n),0) = 1.0;
+				else set(grid(n),0) = 1.0;
+				set(grid(n),1) = 0.0;
 			}
 		}
 
@@ -98,29 +102,31 @@ void generate(int dim, const char* filename)
 }
 
 template<typename T>
-double multiwell(const MMSP::vector<T>& v)
+double multiwell(const MMSP::sparse<T>& v)
 {
 	// this is the 'g' function, Eqn. 30
 	double ifce_nrg = 1.0/12;
-	for (int i=0; i<length(v); i++) {
+	for (int k=0; k<length(v); k++) {
+		int i = index(v,k);
 		ifce_nrg += pow(v[i],4.0)/4.0 - pow(v[i],3.0)/3.0;
-		for (int j=i+1; j<length(v); j++)
+		for (int l=k+1; l<length(v); l++) {
+			int j = index(v,l);
 			ifce_nrg += pow(v[i],2.0)*pow(v[j],2.0)/2.0;
+		}
 	}
 	return ifce_nrg;
 }
 
 template <int dim>
-void update(MMSP::grid<dim,vector<double> >& grid, int steps)
+void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 {
 	double dt = 0.01;
-	double epsilon = 1.0e-8;
 
 	for (int step=0; step<steps; step++) {
 		print_progress(step, steps);
 
 		ghostswap(grid);
-		MMSP::grid<dim,vector<double> > update(grid);
+		MMSP::grid<dim,sparse<double> > update(grid);
 
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
@@ -129,22 +135,28 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 			vector<int> x = position(grid,n);
 
 			// Asymmetric EOM
-			vector<vector<double> > gradPhi = gradient(grid,x);
-			vector<double> lapPhi = laplacian(grid,x);
+			vector<sparse<double> > gradPhi = gradient(grid,x);
+			sparse<double> lapPhi = laplacian(grid,x);
 
-			double denom = 0.0, rdenom=0.0;
-			for (int i=0; i<fields(grid); i++)
-				for (int j=0; j<fields(grid); j++)
+			double denom = 0.0;
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
+				for (int l=0; l<length(lapPhi); l++) {
+					int j = index(lapPhi,l);
 					denom += pow(grid(x)[i],2.0)*pow(grid(x)[j],2.0);
-			if (denom>epsilon) rdenom = 1.0/denom;
+				}
+			}
+			int rdenom = (denom>machine_epsilon)?1.0/denom:0.0;
 
 			double eps0 = 3.0;
 			double omg0 = 3.0;
 
 			double alleps = 0.0, allomg = 0.0;
-			for (int i=0; i<fields(grid); i++) {
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
 				double phii = grid(x)[i];
-				for (int j=0; j<fields(grid); j++) {
+				for (int l=0; l<length(lapPhi); l++) {
+					int j = index(lapPhi,l);
 					double phij = grid(x)[j];
 					double gamij = energy(i,j);
 					double delij = width(i,j);
@@ -155,38 +167,44 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 				}
 			}
 
-			vector<double> dedp(fields(grid),0.0);
-			vector<double> dwdp(fields(grid),0.0);
-			vector<double> dgdp(fields(grid),0.0);
-			for (int i=0; i<fields(grid); i++) {
+			sparse<double> dedp;
+			sparse<double> dwdp;
+			sparse<double> dgdp;
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
 				double phii = grid(x)[i];
-				dgdp[i] = pow(phii,3.0) - pow(phii,2.0);
-				for (int j=0; j<fields(grid); j++) {
+				set(dgdp,i) = pow(phii,3.0) - pow(phii,2.0);
+				for (int l=0; l<length(lapPhi); l++) {
+					int j = index(lapPhi,l);
 					if (i==j) continue;
 					double phij = grid(x)[j];
 					double gamij = energy(i,j);
 					double delij = width(i,j);
 					double epsij = eps0*gamij*delij; // epsilon squared(ij)
 					double omgij = omg0*gamij/delij; // omega(ij)
-					dedp[i] += 2.0*phii*(epsij - alleps)*pow(phij,2.0) * rdenom;
-					dwdp[i] += 2.0*phii*(omgij - allomg)*pow(phij,2.0) * rdenom;
-					dgdp[i] += phii*pow(phij,2.0);
+					set(dedp,i) += 2.0*phii*(epsij - alleps)*pow(phij,2.0) * rdenom;
+					set(dwdp,i) += 2.0*phii*(omgij - allomg)*pow(phij,2.0) * rdenom;
+					set(dgdp,i) += phii*pow(phij,2.0);
 				}
 			}
 
-			vector<double> dFdp(fields(grid),0.0);
+			sparse<double> dFdp;
 			double sumdFdp = 0.0;
-			for (int i=0; i<fields(grid); i++) {
-				dFdp[i] = allomg*dgdp[i] + multiwell(grid(x))*dwdp[i] - alleps*lapPhi[i];
-				for (int j=0; j<fields(grid); j++) {
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
+				set(dFdp,i) = allomg*dgdp[i] + multiwell(grid(x))*dwdp[i] - alleps*lapPhi[i];
+				for (int l=0; l<length(lapPhi); l++) {
+					int j = index(lapPhi,l);
 					for (int d=0; d<dim; d++)
-						dFdp[i] += gradPhi[d][j] * (0.5*dedp[i]*gradPhi[d][j] - dedp[j]*gradPhi[d][i]);
+						set(dFdp,i) += gradPhi[d][j] * (0.5*dedp[i]*gradPhi[d][j] - dedp[j]*gradPhi[d][i]);
 				}
 				sumdFdp += dFdp[i];
 			}
 
-			for (int i=0; i<fields(grid); i++)
-				update(x)[i] = grid(x)[i] + dt*(sumdFdp - double(fields(grid))*dFdp[i]);
+			for (int k=0; k<length(dFdp); k++) {
+				int i = index(dFdp,k);
+				set(update(x),i) = grid(x)[i] + dt*(sumdFdp - double(length(dFdp))*dFdp[i]);
+			}
 
 		}
 		swap(grid,update);
@@ -194,12 +212,14 @@ void update(MMSP::grid<dim,vector<double> >& grid, int steps)
 	// In case vector calculations are necessary for mass or energy
 	ghostswap(grid);
 
-	MMSP::vector<double> mass(fields(grid));
+	MMSP::sparse<double> mass;
 	for (int n=0; n<nodes(grid); n++)
-		for (int l=0; l<fields(grid); l++)
-			mass[l] += grid(n)[l];
+		for (int k=0; k<length(grid(n)); k++) {
+			int i = index(grid(n),k);
+			set(mass,i) += grid(n)[i];
+		}
 	for (int l=0; l<length(mass); l++)
-		std::cout<<mass[l]<<'\t';
+		std::cout<<mass.value(l)<<'\t';
 	std::cout<<std::endl;
 }
 
