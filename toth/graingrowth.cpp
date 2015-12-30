@@ -157,13 +157,13 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 				double phii = grid(x)[i];
 				for (int l=0; l<length(lapPhi); l++) {
 					int j = index(lapPhi,l);
-					double phij = grid(x)[j];
+					double phij2 = pow(grid(x)[j],2.0);
 					double gamij = energy(i,j);
 					double delij = width(i,j);
 					double epsij = eps0*gamij*delij; // epsilon squared(ij)
 					double omgij = omg0*gamij/delij; // omega(ij)
-					alleps += epsij*pow(phii,2.0)*pow(phij,2.0) * rdenom;
-					allomg += omgij*pow(phii,2.0)*pow(phij,2.0) * rdenom;
+					alleps += epsij*pow(phii,2.0)*phij2 * rdenom;
+					allomg += omgij*pow(phii,2.0)*phij2 * rdenom;
 				}
 			}
 
@@ -177,14 +177,14 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 				for (int l=0; l<length(lapPhi); l++) {
 					int j = index(lapPhi,l);
 					if (i==j) continue;
-					double phij = grid(x)[j];
+					double phij2 = pow(grid(x)[j],2.0);
 					double gamij = energy(i,j);
 					double delij = width(i,j);
 					double epsij = eps0*gamij*delij; // epsilon squared(ij)
 					double omgij = omg0*gamij/delij; // omega(ij)
-					set(dedp,i) += 2.0*phii*(epsij - alleps)*pow(phij,2.0) * rdenom;
-					set(dwdp,i) += 2.0*phii*(omgij - allomg)*pow(phij,2.0) * rdenom;
-					set(dgdp,i) += phii*pow(phij,2.0);
+					set(dedp,i) += 2.0*phii*(epsij - alleps)*phij2 * rdenom;
+					set(dwdp,i) += 2.0*phii*(omgij - allomg)*phij2 * rdenom;
+					set(dgdp,i) += phii*phij2;
 				}
 			}
 
