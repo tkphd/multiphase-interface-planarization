@@ -121,54 +121,46 @@ template <int dim> void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 
 			sparse<double>* g = &grid(x);
 
-			// determine nonzero fields within
-			// the neighborhood of this node
-			sparse<int> s;
-			for (int j=0; j<dim; j++)
-				for (int k=-1; k<=1; k++) {
-					x[j] += k;
-					for (int h=0; h<length(grid(x)); h++) {
-						int index = MMSP::index(grid(x),h);
-						set(s,index) = 1;
-					}
-					x[j] -= k;
-				}
-			double S = double(length(s));
+			// compute laplacian of each field
+			sparse<double> lapPhi = laplacian(grid,n);
+
+			double S = double(length(lapPhi));
 
 			// if only one field is nonzero,
 			// then copy this node to update
 			if (S<2.0) update(x) = (*g);
 
 			else {
-				// compute laplacian of each field
-				sparse<double> lap = laplacian(grid,n);
 
 				// compute variational derivatives
 				sparse<double> dFdp;
-				for (int h=0; h<length(s); h++) {
-					int hindex = MMSP::index(s,h);
-					for (int j=h+1; j<length(s); j++) {
-						int jindex = MMSP::index(s,j);
+				for (int h=0; h<length(lapPhi); h++) {
+					int hindex = MMSP::index(lapPhi,h);
+					double phii = (*g)[hindex];
+					for (int j=h+1; j<length(lapPhi); j++) {
+						int jindex = MMSP::index(lapPhi,j);
+						double phij = (*g)[jindex];
 						double gamma = energy(hindex,jindex);
 						double eps = 4.0/acos(-1.0)*sqrt(0.5*gamma*width);
 						double w = 4.0*gamma/width;
-						set(dFdp,hindex) += 0.5*eps*eps*lap[jindex]+w*(*g)[jindex];
-						set(dFdp,jindex) += 0.5*eps*eps*lap[hindex]+w*(*g)[hindex];
-						for (int k=j+1; k<length(s); k++) {
-							int kindex = MMSP::index(s,k);
-							set(dFdp,hindex) += 3.0*(*g)[jindex]*(*g)[kindex];
-							set(dFdp,jindex) += 3.0*(*g)[kindex]*(*g)[hindex];
-							set(dFdp,kindex) += 3.0*(*g)[hindex]*(*g)[jindex];
+						set(dFdp,hindex) += 0.5*eps*eps*lapPhi[jindex]+w*phij;
+						set(dFdp,jindex) += 0.5*eps*eps*lapPhi[hindex]+w*phii;
+						for (int k=j+1; k<length(lapPhi); k++) {
+							int kindex = MMSP::index(lapPhi,k);
+							double phik = (*g)[kindex];
+							set(dFdp,hindex) += 3.0*phij*phik;
+							set(dFdp,jindex) += 3.0*phii*phik;
+							set(dFdp,kindex) += 3.0*phii*phij;
 						}
 					}
 				}
 
 				// compute time derivatives
 				sparse<double> dpdt;
-				for (int h=0; h<length(s); h++) {
-					int hindex = MMSP::index(s,h);
-					for (int j=h+1; j<length(s); j++) {
-						int jindex = MMSP::index(s,j);
+				for (int h=0; h<length(lapPhi); h++) {
+					int hindex = MMSP::index(lapPhi,h);
+					for (int j=h+1; j<length(lapPhi); j++) {
+						int jindex = MMSP::index(lapPhi,j);
 						double mu = mobility(hindex,jindex);
 						set(dpdt,hindex) -= mu*(dFdp[hindex]-dFdp[jindex]);
 						set(dpdt,jindex) -= mu*(dFdp[jindex]-dFdp[hindex]);
@@ -177,8 +169,8 @@ template <int dim> void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 
 				// compute update values
 				double sum = 0.0;
-				for (int h=0; h<length(s); h++) {
-					int index = MMSP::index(s,h);
+				for (int h=0; h<length(dpdt); h++) {
+					int index = MMSP::index(dpdt,h);
 					double value = (*g)[index]+dt*(2.0/S)*dpdt[index];
 					if (value>1.0) value = 1.0;
 					if (value<0.0) value = 0.0;
