@@ -125,8 +125,10 @@ template <int dim> void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 		#ifndef MPI_VERSION
 		#pragma omp parallel for
 		#endif
-		for (int i=0; i<nodes(grid); i++) {
-			vector<int> x = position(grid,i);
+		for (int n=0; n<nodes(grid); n++) {
+			vector<int> x = position(grid,n);
+
+			sparse<double>* g = &grid(x);
 
 			// determine nonzero fields within
 			// the neighborhood of this node
@@ -144,11 +146,11 @@ template <int dim> void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 
 			// if only one field is nonzero,
 			// then copy this node to update
-			if (S<2.0) update(i) = grid(i);
+			if (S<2.0) update(x) = (*g);
 
 			else {
 				// compute laplacian of each field
-				sparse<double> lap = laplacian(grid,i);
+				sparse<double> lap = laplacian(grid,n);
 
 				// compute variational derivatives
 				sparse<double> dFdp;
@@ -159,13 +161,13 @@ template <int dim> void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 						double gamma = energy(hindex,jindex);
 						double eps = 4.0/acos(-1.0)*sqrt(0.5*gamma*width);
 						double w = 4.0*gamma/width;
-						set(dFdp,hindex) += 0.5*eps*eps*lap[jindex]+w*grid(i)[jindex];
-						set(dFdp,jindex) += 0.5*eps*eps*lap[hindex]+w*grid(i)[hindex];
+						set(dFdp,hindex) += 0.5*eps*eps*lap[jindex]+w*(*g)[jindex];
+						set(dFdp,jindex) += 0.5*eps*eps*lap[hindex]+w*(*g)[hindex];
 						for (int k=j+1; k<length(s); k++) {
 							int kindex = MMSP::index(s,k);
-							set(dFdp,hindex) += 3.0*grid(i)[jindex]*grid(i)[kindex];
-							set(dFdp,jindex) += 3.0*grid(i)[kindex]*grid(i)[hindex];
-							set(dFdp,kindex) += 3.0*grid(i)[hindex]*grid(i)[jindex];
+							set(dFdp,hindex) += 3.0*(*g)[jindex]*(*g)[kindex];
+							set(dFdp,jindex) += 3.0*(*g)[kindex]*(*g)[hindex];
+							set(dFdp,kindex) += 3.0*(*g)[hindex]*(*g)[jindex];
 						}
 					}
 				}
@@ -186,19 +188,19 @@ template <int dim> void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 				double sum = 0.0;
 				for (int h=0; h<length(s); h++) {
 					int index = MMSP::index(s,h);
-					double value = grid(i)[index]+dt*(2.0/S)*dpdt[index];
+					double value = (*g)[index]+dt*(2.0/S)*dpdt[index];
 					if (value>1.0) value = 1.0;
 					if (value<0.0) value = 0.0;
-					if (value>epsilon) set(update(i),index) = value;
-					sum += update(i)[index];
+					if (value>epsilon) set(update(x),index) = value;
+					sum += update(x)[index];
 				}
 
 				// project onto Gibbs simplex
 				double rsum = 0.0;
 				if (fabs(sum)>0.0) rsum = 1.0/sum;
-				for (int h=0; h<length(update(i)); h++) {
-					int index = MMSP::index(update(i),h);
-					set(update(i),index) *= rsum;
+				for (int h=0; h<length(update(x)); h++) {
+					int index = MMSP::index(update(x),h);
+					set(update(x),index) *= rsum;
 				}
 			}
 		}

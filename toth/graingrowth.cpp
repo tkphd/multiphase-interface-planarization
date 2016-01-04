@@ -203,7 +203,7 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 				sumdFdp += dFdp[i];
 			}
 
-			double sum = 0.0;
+			//double sum = 0.0;
 			for (int k=0; k<length(dFdp); k++) {
 				int i = index(dFdp,k);
 				double value = (*g)[i] + dt*(sumdFdp - double(length(dFdp))*dFdp[i]);
@@ -211,15 +211,17 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 				else if (value<0.0) value = 0.0;
 				if (fabs(value)>machine_epsilon)
 					set(update(x),i) = value;
-                sum += update(x)[i];
+                //sum += update(x)[i];
 			}
 
+			/*
 			// project onto Gibbs simplex
 			double rsum = (fabs(sum)>0.0)?1.0/sum:0.0;
 			for (int h=0; h<length(update(x)); h++) {
 				int i = MMSP::index(update(x),h);
 				set(update(x),i) *= rsum;
 			}
+			*/
 		}
 		swap(grid,update);
 	}

@@ -140,6 +140,8 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
+			sparse<double>* g = &grid(x);
+
 			double kap0 = 1.0;
 			double omg0 = 1.0;
 
@@ -155,18 +157,18 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 
 			for (int k=0; k<length(lapPhi); k++) {
 				int i = index(lapPhi,k);
-				double phii = grid(x)[i];
+				double phii = (*g)[i];
 				set(dFdp,i) = omega*(pow(phii,3.0) - phii) - kappa*lapPhi[i];
 				for (int l=0; l<length(lapPhi); l++) {
 					int j = index(lapPhi,l);
 					if (i==j) continue;
-					set(dFdp,i) += 2.0*omega*gamma*phii*pow(grid(x)[j],2.0);
+					set(dFdp,i) += 2.0*omega*gamma*phii*pow((*g)[j],2.0);
 				}
 			}
 
 			for (int k=0; k<length(lapPhi); k++) {
 				int i = index(lapPhi,k);
-				set(update(x),i) = grid(x)[i] - dt*dFdp[i];
+				set(update(x),i) = (*g)[i] - dt*dFdp[i];
 			}
 			*/
 
@@ -179,7 +181,7 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 				int i = index(lapPhi,k);
 				for (int l=0; l<length(lapPhi); l++) {
 					int j = index(lapPhi,l);
-					denom += pow(grid(x)[i],2.0)*pow(grid(x)[j],2.0);
+					denom += pow((*g)[i],2.0)*pow((*g)[j],2.0);
 				}
 			}
 			double rdenom = (denom>machine_epsilon)?1.0/denom:0.0;
@@ -187,10 +189,10 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 			double allkap = 0.0, allomg = 0.0;
 			for (int k=0; k<length(lapPhi); k++) {
 				int i = index(lapPhi,k);
-				double phii = grid(x)[i];
+				double phii = (*g)[i];
 				for (int l=0; l<length(lapPhi); l++) {
 					int j = index(lapPhi,l);
-					double phij2 = pow(grid(x)[j],2.0);
+					double phij2 = pow((*g)[j],2.0);
 					double gamij = energy(i,j);
 					double delij = width(i,j);
 					double kapij = kap0*gamij*delij; // epsilon squared(ij)
@@ -205,12 +207,12 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 			sparse<double> dgdp;
 			for (int k=0; k<length(lapPhi); k++) {
 				int i = index(lapPhi,k);
-				double phii = grid(x)[i];
+				double phii = (*g)[i];
 				set(dgdp,i) = pow(phii,3.0) - phii;
 				for (int l=0; l<length(lapPhi); l++) {
 					int j = index(lapPhi,l);
 					if (i==j) continue;
-					double phij2 = pow(grid(x)[j],2.0);
+					double phij2 = pow((*g)[j],2.0);
 					double gamij = energy(i,j);
 					double delij = width(i,j);
 					double kapij = kap0*gamij*delij; // epsilon squared(ij)
@@ -223,13 +225,13 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 
 			for (int k=0; k<length(lapPhi); k++) {
 				int i = index(lapPhi,k);
-				double dFdp = allomg*dgdp[i] + multiwell(grid(x))*dwdp[i] - allkap*lapPhi[i];
+				double dFdp = allomg*dgdp[i] + multiwell((*g))*dwdp[i] - allkap*lapPhi[i];
 				for (int l=0; l<length(lapPhi); l++) {
 					int j = index(lapPhi,l);
 					for (int d=0; d<dim; d++)
 						dFdp += gradPhi[d][j] * (0.5*dedp[i]*gradPhi[d][j] - dedp[j]*gradPhi[d][i]);
 				}
-				set(update(x),i) = grid(x)[i] - dt*dFdp;
+				set(update(x),i) = (*g)[i] - dt*dFdp;
 			}
 
 		}
