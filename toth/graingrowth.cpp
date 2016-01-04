@@ -94,12 +94,9 @@ double multiwell(const MMSP::sparse<T>& v)
 	// this is the 'g' function, Eqn. 30
 	double ifce_nrg = 1.0/12;
 	for (int k=0; k<length(v); k++) {
-		int i = index(v,k);
-		ifce_nrg += pow(v[i],4.0)/4.0 - pow(v[i],3.0)/3.0;
-		for (int l=k+1; l<length(v); l++) {
-			int j = index(v,l);
-			ifce_nrg += pow(v[i],2.0)*pow(v[j],2.0)/2.0;
-		}
+		ifce_nrg += pow(v.value(k),4.0)/4.0 - pow(v.value(k),3.0)/3.0;
+		for (int l=k+1; l<length(v); l++)
+			ifce_nrg += pow(v.value(k),2.0)*pow(v.value(l),2.0)/2.0;
 	}
 	return ifce_nrg;
 }
@@ -121,18 +118,41 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
+			/*
+			// Symmetric EOM
+			double omega = 1.0;
+			double epssq = 1.0;
+
+			sparse<double> lapPhi = laplacian(grid,x);
+			double sumPhiSq = 0.0;
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
+				sumPhiSq += pow(grid(n)[i],2.0);
+			}
+
+			sparse<double> dFdp;
+			double sumdFdp = 0.0;
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
+				double phii = grid(n)[i];
+				set(dFdp,i) = omega*phii*(sumPhiSq-phii) - epssq*lapPhi[i];
+				sumdFdp += dFdp[i];
+			}
+
+			for (int k=0; k<length(dFdp); k++) {
+				int i = index(dFdp,k);
+				set(update(x),i) = grid(n)[i] + dt*(sumdFdp - double(length(dFdp))*dFdp[i]);
+			}
+			*/
+
 			// Asymmetric EOM
 			vector<sparse<double> > gradPhi = gradient(grid,x);
 			sparse<double> lapPhi = laplacian(grid,x);
 
 			double denom = 0.0;
-			for (int k=0; k<length(lapPhi); k++) {
-				int i = index(lapPhi,k);
-				for (int l=0; l<length(lapPhi); l++) {
-					int j = index(lapPhi,l);
-					denom += pow(grid(n)[i],2.0)*pow(grid(n)[j],2.0);
-				}
-			}
+			for (int k=0; k<length(lapPhi); k++)
+				for (int l=0; l<length(lapPhi); l++)
+					denom += pow(grid(n).value(k),2.0)*pow(grid(n).value(l),2.0);
 			int rdenom = (denom>machine_epsilon)?1.0/denom:0.0;
 
 			double eps0 = 3.0;
@@ -141,7 +161,7 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 			double alleps = 0.0, allomg = 0.0;
 			for (int k=0; k<length(grid(n)); k++) {
 				int i = index(grid(n),k);
-				double phii = grid(n)[i];
+				double phii2 = pow(grid(n)[i],2.0);
 				for (int l=0; l<length(grid(n)); l++) {
 					int j = index(grid(n),l);
 					double phij2 = pow(grid(n)[j],2.0);
@@ -149,8 +169,8 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 					double delij = width(i,j);
 					double epsij = eps0*gamij*delij; // epsilon squared(ij)
 					double omgij = omg0*gamij/delij; // omega(ij)
-					alleps += epsij*pow(phii,2.0)*phij2 * rdenom;
-					allomg += omgij*pow(phii,2.0)*phij2 * rdenom;
+					alleps += epsij*phii2*phij2 * rdenom;
+					allomg += omgij*phii2*phij2 * rdenom;
 				}
 			}
 
@@ -162,8 +182,8 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 				double phii = grid(n)[i];
 				set(dgdp,i) = pow(phii,3.0) - pow(phii,2.0);
 				for (int l=0; l<length(grid(n)); l++) {
+					if (k==l) continue;
 					int j = index(grid(n),l);
-					if (i==j) continue;
 					double phij2 = pow(grid(n)[j],2.0);
 					double gamij = energy(i,j);
 					double delij = width(i,j);
@@ -188,23 +208,11 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 				sumdFdp += dFdp[i];
 			}
 
-			double sum = 0.0;
 			for (int k=0; k<length(dFdp); k++) {
 				int i = index(dFdp,k);
-				double value = grid(n)[i] + dt*(sumdFdp - double(length(dFdp))*dFdp[i]);
-				if (value>1.0) value = 1.0;
-				else if (value<0.0) value = 0.0;
-				if (fabs(value)>machine_epsilon)
-					set(update(x),i) = value;
-                sum += update(x)[i];
+				set(update(x),i) =  grid(n)[i] + dt*(sumdFdp - double(length(dFdp))*dFdp[i]);
 			}
 
-			// project onto Gibbs simplex
-			double rsum = (fabs(sum)>machine_epsilon)?1.0/sum:0.0;
-			for (int h=0; h<length(update(x)); h++) {
-				int i = MMSP::index(update(x),h);
-				set(update(x),i) *= rsum;
-			}
 		}
 		swap(grid,update);
 	}
