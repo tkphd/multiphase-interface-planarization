@@ -168,7 +168,7 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 			for (int k=0; k<length(lapPhi); k++)
 				for (int l=0; l<length(lapPhi); l++)
 					denom += pow(grid(n).value(k),2.0)*pow(grid(n).value(l),2.0);
-			int rdenom = (denom>machine_epsilon)?1.0/denom:0.0;
+			double rdenom = (denom>machine_epsilon)?1.0/denom:0.0;
 
 			double eps0 = 3.0;
 			double omg0 = 3.0;
