@@ -25,7 +25,7 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(grid,n);
 
 			if (x[0]<32)      set(grid(n),2) = 1.0;
-			else if (x[0]>96) set(grid(n),2) = 1.0;
+			else if (x[0]>96) set(grid(n),1) = 1.0;
 			else              set(grid(n),0) = 1.0;
 		}
 
@@ -101,6 +101,20 @@ double multiwell(const MMSP::sparse<T>& v)
 	return ifce_nrg;
 }
 
+template<typename T>
+sparse<T> multiwell_derivative(const MMSP::sparse<T>& v)
+{
+	sparse<T> dg;
+	double sum = 0.0;
+	for (int k=0; k<length(v); k++)
+		sum += pow(v.value(k),2.0);
+	for (int k=0; k<length(v); k++) {
+		int i = index(v,k);
+		set(dg,i) = v[i]*(sum - v[i]);
+	}
+	return dg;
+}
+
 template <int dim>
 void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 {
@@ -131,11 +145,12 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 			}
 
 			sparse<double> dFdp;
+			sparse<double> dgdp = multiwell_derivative(grid(n));
 			double sumdFdp = 0.0;
 			for (int k=0; k<length(lapPhi); k++) {
 				int i = index(lapPhi,k);
 				double phii = grid(n)[i];
-				set(dFdp,i) = omega*phii*(sumPhiSq-phii) - epssq*lapPhi[i];
+				set(dFdp,i) = omega*dgdp[i] - epssq*lapPhi[i];
 				sumdFdp += dFdp[i];
 			}
 
@@ -159,11 +174,11 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 			double omg0 = 3.0;
 
 			double alleps = 0.0, allomg = 0.0;
-			for (int k=0; k<length(grid(n)); k++) {
-				int i = index(grid(n),k);
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
 				double phii2 = pow(grid(n)[i],2.0);
-				for (int l=0; l<length(grid(n)); l++) {
-					int j = index(grid(n),l);
+				for (int l=0; l<length(lapPhi); l++) {
+					int j = index(lapPhi,l);
 					double phij2 = pow(grid(n)[j],2.0);
 					double gamij = energy(i,j);
 					double delij = width(i,j);
@@ -176,14 +191,12 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 
 			sparse<double> dedp;
 			sparse<double> dwdp;
-			sparse<double> dgdp;
-			for (int k=0; k<length(grid(n)); k++) {
-				int i = index(grid(n),k);
+			for (int k=0; k<length(lapPhi); k++) {
+				int i = index(lapPhi,k);
 				double phii = grid(n)[i];
-				set(dgdp,i) = pow(phii,3.0) - pow(phii,2.0);
-				for (int l=0; l<length(grid(n)); l++) {
+				for (int l=0; l<length(lapPhi); l++) {
 					if (k==l) continue;
-					int j = index(grid(n),l);
+					int j = index(lapPhi,l);
 					double phij2 = pow(grid(n)[j],2.0);
 					double gamij = energy(i,j);
 					double delij = width(i,j);
@@ -191,11 +204,11 @@ void update(MMSP::grid<dim,sparse<double> >& grid, int steps)
 					double omgij = omg0*gamij/delij; // omega(ij)
 					set(dedp,i) += 2.0*phii*(epsij - alleps)*phij2 * rdenom;
 					set(dwdp,i) += 2.0*phii*(omgij - allomg)*phij2 * rdenom;
-					set(dgdp,i) += phii*phij2;
 				}
 			}
 
 			sparse<double> dFdp;
+			sparse<double> dgdp = multiwell_derivative(grid(n));
 			double sumdFdp = 0.0;
 			for (int k=0; k<length(lapPhi); k++) {
 				int i = index(lapPhi,k);
