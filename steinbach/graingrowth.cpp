@@ -40,19 +40,10 @@ void generate(int dim, const char* filename)
 			vector<int> x = position(grid,n);
 
 			// Plane
-			if (std::pow(x[0]-64,2)+std::pow(x[1]-64,2) < 1024) {
-				set(grid(n),1) = 1.0;
-				set(grid(n),2) = 0.0;
-				set(grid(n),3) = 0.0;
-			} else if (x[0]<64) {
-				set(grid(n),1) = 0.0;
-				set(grid(n),2) = 1.0;
-				set(grid(n),3) = 0.0;
-			} else {
-				set(grid(n),1) = 0.0;
-				set(grid(n),2) = 0.0;
-				set(grid(n),3) = 1.0;
-			}
+			double rsq = std::pow(x[0]-64,2.0)+std::pow(x[1]-64,2.0);
+			if (rsq < 1024)   set(grid(n),1) = 1.0;
+			else if (x[0]<64) set(grid(n),2) = 1.0;
+			else              set(grid(n),3) = 1.0;
 
 			/*
 			// Honeycomb

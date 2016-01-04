@@ -27,7 +27,6 @@ void generate(int dim, const char* filename)
 			if (x[0]<32)      set(grid(n),2) = 1.0;
 			else if (x[0]>96) set(grid(n),2) = 1.0;
 			else              set(grid(n),0) = 1.0;
-			set(grid(n),1) = 0.0;
 		}
 
 		output(grid,filename);
@@ -42,19 +41,10 @@ void generate(int dim, const char* filename)
 		for (int n=0; n<nodes(grid); n++) {
 			vector<int> x = position(grid,n);
 
-			if (std::pow(x[0]-64,2.0)+std::pow(x[1]-64,2.0) < 1024) {
-				set(grid(n),0) = 1.0;
-				set(grid(n),1) = 0.0;
-				set(grid(n),2) = 0.0;
-			} else if (x[0]<64) {
-				set(grid(n),0) = 0.0;
-				set(grid(n),1) = 1.0;
-				set(grid(n),2) = 0.0;
-			} else {
-				set(grid(n),0) = 0.0;
-				set(grid(n),1) = 0.0;
-				set(grid(n),2) = 1.0;
-			}
+			double rsq = std::pow(x[0]-64,2.0)+std::pow(x[1]-64,2.0);
+			if (rsq < 1024)   set(grid(n),0) = 1.0;
+			else if (x[0]<64) set(grid(n),1) = 1.0;
+			else              set(grid(n),2) = 1.0;
 		}
 
 		MMSP::sparse<double> mass;
@@ -82,18 +72,15 @@ void generate(int dim, const char* filename)
 			if (x[0]<16) {
 				if (x[1]<32) set(grid(n),1) = 1.0;
 				else set(grid(n),2) = 1.0;
-				set(grid(n),0) = 0.0;
 			}
 			else if (x[0]>48) {
 				if (x[1]<32) set(grid(n),1) = 1.0;
 				else set(grid(n),2) = 1.0;
-				set(grid(n),0) = 0.0;
 
 			}
 			else {
 				if (x[1]<16 || x[1]>48) set(grid(n),0) = 1.0;
 				else set(grid(n),0) = 1.0;
-				set(grid(n),1) = 0.0;
 			}
 		}
 
