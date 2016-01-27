@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-# Plot the bulk contributions (no gradients) for a selection of
-# multiphase-field models. For details, see
-# Toth et al., Phys. Rev. B 92 (2015) 184105.
+# Plot the bulk contributions (no gradients) for a selection of multiphase-field models.
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -17,19 +15,23 @@ def binary_folch(a, b):
 
 def ternary_folch(a, b, c):
 	return np.power(a*(1.0-a),2) + np.power(b*(1.0-b),2) + np.power(c*(1.0-c),2)
-#
+
+# Steinbach and Pezzolla. Physica D 134 (1999) 385-393. Eqn. 10.
 def binary_steinbach(a, b):
 	return 0.5*np.abs(a)*np.abs(b)
 
 def ternary_steinbach(a, b, c):
 	return 0.5*np.abs(a)*np.abs(b) + 0.5*np.abs(a)*np.abs(c) + 0.5*np.abs(b)*np.abs(c)		
-#
+
+# Chen and Yang. Phys. Rev. B 50 (1994) 15752. Eqn. 1.
 def binary_chen(a, b):
 	return (0.25*a**4 - 0.5*a**2) + (0.25*b**4 - 0.5*b**2) + 2.0*a**2*b**2
 
 def ternary_chen(a, b, c):
-	return (0.25*a**4 - 0.5*a**2) + (0.25*b**4 - 0.5*b**2) + (0.25*c**4 - 0.5*c**2) + 2.0*a**2*b**2 + 2.0*a**2*c**2 + 2.0*b**2*c**2
-#
+	return (0.25*a**4 - 0.5*a**2) + (0.25*b**4 - 0.5*b**2) + (0.25*c**4 - 0.5*c**2)\
+	       + 2.0*a**2*b**2 + 2.0*a**2*c**2 + 2.0*b**2*c**2
+
+# Moelans, Blanpain, and Wollants. Pyhs. Rev. B 78 (2008) 024113. Eqn. 2.
 def binary_moelans(a, b):
 	gamma = 1.5
 	return 1.0/4 + (0.25*a**4 - 0.5*a**2) + (0.25*b**4 - 0.5*b**2) + gamma*a**2*b**2
@@ -39,7 +41,8 @@ def ternary_moelans(a, b, c):
 	return 1.0/4 \
 	       + (0.25*a**4 - 0.5*a**2) + (0.25*b**4 - 0.5*b**2) + (0.25*c**4 - 0.5*c**2) \
 	       + gamma*(a**2*b**2 + a**2*c**2 + b**2+c**2)
-#
+
+# Toth, Pusztai, and Granasy. Phys. Rev. B 92 (2015) 184105. Eqn. 30.
 def binary_toth(a, b):
 	return 1.0/12 + (0.25*a**4 - (1.0/3)*a**3) + (0.25*b**4 - (1.0/3)*b**3) + 0.5*a**2*b**2
 
@@ -47,16 +50,18 @@ def ternary_toth(a, b, c):
 	return 1.0/12 \
 	       + (0.25*a**4 - (1.0/3)*a**3) + (0.25*b**4 - (1.0/3)*b**3) + (0.25*c**4 - (1.0/3)*c**3) \
 	       + 0.5*(a**2*b**2 + a**2*c**2 + b**2+c**2)
-#
+
+# Levitas and Roy. Phys. Rev. B 91 (2015) 174109. Eqn. 4.
 def binary_levitas(a, b):
 	l=2
 	return (a + b - 1.0)**2*np.power(a,l)*np.power(b,l)
 
 def ternary_levitas(a, b, c):
 	l=2
-	return (a + b - 1.0)**2*np.power(a,l)*np.power(b,l) + (a + c - 1.0)**2*np.power(a,l)*np.power(c,l) + (b + c - 1.0)**2*np.power(b,l)*np.power(c,l) \
+	return   (a + b - 1.0)**2*np.power(a,l)*np.power(b,l) \
+	       + (a + c - 1.0)**2*np.power(a,l)*np.power(c,l) \
+	       + (b + c - 1.0)**2*np.power(b,l)*np.power(c,l) \
 	       + 0.0625*a**2*b**2*c**2
-#
 
 
 # Binary system
@@ -99,6 +104,7 @@ for ax in axarr.reshape(-1):
 	ax.tricontour(x,y,zpath, [1.0])
 	ax.plot(sqx,sqy, linestyle=':', color='w')
 	n+=1
+plt.figtext(0.5, 0.0625, r'White boxes enclose $x,y\in[0,1]$. Black pathways constrain $\phi_\alpha+\phi_\beta=1$.', ha='center', fontsize=8)
 f.savefig('binary.png', dpi=400, bbox_inches='tight')
 plt.close()
 
@@ -148,6 +154,7 @@ for ax in axarr.reshape(-1):
 	ax.tricontourf(p,q,z[n], 96, cmap=plt.cm.get_cmap('coolwarm'))
 	ax.plot(trix,triy, linestyle=':', color='w')
 	n+=1
+plt.figtext(0.5, 0.0625, r'White triangles enclose Gibbs simplex, $\phi_\alpha+\phi_\beta+\phi_\gamma=1$.', ha='center', fontsize=8)
 f.savefig('ternary.png', dpi=400, bbox_inches='tight')
 plt.close()
 
