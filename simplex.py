@@ -173,7 +173,19 @@ for ax in axarr.reshape(-1):
 	ax.plot(trix,triy, linestyle=':', color='w')
 	n+=1
 plt.figtext(x=0.5, y=0.0625, ha='center', fontsize=8, \
-    s=r'White triangles enclose Gibbs simplex, $\phi_\alpha+\phi_\beta+\phi_\gamma=1$.')
+            s=r'White triangles enclose Gibbs simplex, $\phi_\alpha+\phi_\beta+\phi_\gamma=1$.')
 f.savefig('ternary.png', dpi=400, bbox_inches='tight')
 plt.close()
 
+for n in range(len(z)):
+	plt.axis('equal')
+	plt.xlim(span)
+	plt.ylim(yspan)
+	plt.axis('off')
+	plt.tricontourf(p,q,z[n], 96, cmap=plt.cm.get_cmap('coolwarm'))
+	plt.plot(trix,triy, linestyle=':', color='w')
+	plt.margins(0,0)
+	plt.gca().xaxis.set_major_locator(plt.NullLocator())
+	plt.gca().yaxis.set_major_locator(plt.NullLocator())
+	plt.savefig(Titles[n]+"MPF.png", transparent=True, dpi=600, bbox_inches='tight', pad_inches=0)
+	plt.close()
