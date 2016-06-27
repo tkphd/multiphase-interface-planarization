@@ -1,4 +1,4 @@
-# Trijunction Drag
+# Multiphase Interface Planarization
 A recent paper (*Physical Review B* **92** (2015) 184105) reviewed competing
 multiphase-field models for thermodynamic consistency and kinetic stability
 of planar interfaces at equilibrium. Contour plots of bulk free energy potentials
