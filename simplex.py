@@ -26,7 +26,7 @@ def binary_steinbach(a, b):
 def ternary_steinbach(a, b, c):
 	return   0.5*np.abs(a)*np.abs(b) \
 	       + 0.5*np.abs(a)*np.abs(c) \
-	       + 0.5*np.abs(b)*np.abs(c)		
+	       + 0.5*np.abs(b)*np.abs(c)
 
 # Chen and Yang. Phys. Rev. B 50 (1994) 15752. Eqn. 1.
 def binary_chen(a, b):
